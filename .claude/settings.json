@@ -1,0 +1,13 @@
+{
+  "extraKnownMarketplaces": {
+    "r-skills": {
+      "source": {
+        "source": "github",
+        "repo": "ab604/claude-code-r-skills"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "r-skills@r-skills": true
+  }
+}

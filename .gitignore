@@ -1,0 +1,51 @@
+# ---- Research data & results: never commit real/derived research data -----
+# Includes uploaded matrices, fetched GEO data, and all engine outputs. Some
+# of this is derived from human postmortem brain data (AMP-AD/MSBB cohort) —
+# must never end up in git history, public or private.
+data/
+results/
+*.rds
+*.RData
+
+# ---- Python -----------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+.python-version
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ---- R ------------------------------------------------------------------------
+.Rhistory
+.RData
+.Rproj.user/
+*.Rproj
+.Renviron
+
+# ---- Secrets / env -----------------------------------------------------------
+.env
+.env.*
+*.pem
+*.key
+credentials.json
+
+# ---- OS / editor cruft --------------------------------------------------------
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/
+.idea/
+
+# ---- Logs / temp ---------------------------------------------------------------
+*.log
+*.tmp
+/tmp/

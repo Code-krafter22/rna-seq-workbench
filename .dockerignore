@@ -1,0 +1,18 @@
+# Don't bake local data/results into the image — mount them as volumes instead
+# (see the `docker run -v` examples in the Dockerfile / README).
+data/
+results/
+
+# Python / R local artifacts
+__pycache__/
+*.pyc
+.venv/
+venv/
+.Rhistory
+.RData
+
+# VCS / editor / OS cruft
+.git/
+.gitignore
+.DS_Store
+*.swp
