@@ -1,3 +1,14 @@
+---
+title: RNA-seq Workbench
+emoji: 🧬
+colorFrom: green
+colorTo: gray
+sdk: docker
+app_port: 8501
+pinned: false
+short_description: Bulk RNA-seq DE with DESeq2, edgeR and limma-voom
+---
+
 # Bulk RNA-seq Differential Expression App (transcriptomics only)
 
 A Streamlit web app for bulk RNA-seq differential expression. Takes a raw counts
