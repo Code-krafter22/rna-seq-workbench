@@ -49,3 +49,6 @@ Thumbs.db
 *.log
 *.tmp
 /tmp/
+
+# ---- Demo videos (large binaries) ----------------------------------------------
+demo/

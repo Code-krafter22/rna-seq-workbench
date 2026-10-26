@@ -36,6 +36,17 @@ suppressPackageStartupMessages({
 
 `%||%` <- function(a, b) if (is.null(a)) b else a
 
+# Versions of R and every R package the portal's analysis uses (DE engine, GEO
+# fetch, enrichment, ID mapping), recorded with each run for methods sections.
+software_versions <- function() {
+  pkgs <- c("DESeq2", "edgeR", "limma", "GEOquery", "clusterProfiler", "ReactomePA",
+            "AnnotationDbi", "org.Hs.eg.db", "org.Mm.eg.db", "ggplot2", "pheatmap", "jsonlite")
+  v <- vapply(pkgs, function(p) tryCatch(as.character(packageVersion(p)),
+                                         error = function(e) "not installed"), "")
+  bioc <- tryCatch(as.character(BiocManager::version()), error = function(e) "unknown")
+  c(list(R = paste(R.version$major, R.version$minor, sep = "."), Bioconductor = bioc), as.list(v))
+}
+
 # ---- tiny arg parser -------------------------------------------------------
 parse_args <- function(args) {
   out <- list()
@@ -143,6 +154,13 @@ standardize <- function(df, method) {
 }
 
 # ---- DESeq2 ----------------------------------------------------------------
+# DESeq2 prints a note when condition levels contain spaces/punctuation (e.g. GEO's
+# "Alzheimer's disease"). Harmless, so hide only that note; other messages pass.
+hide_level_note <- function(expr) withCallingHandlers(expr, message = function(m) {
+  if (grepl("levels of factors in the design", conditionMessage(m), fixed = TRUE))
+    invokeRestart("muffleMessage")
+})
+
 run_deseq2 <- function() {
   dds <- DESeqDataSetFromMatrix(counts, colData = samples, design = design_formula)
   dds <- DESeq(dds, quiet = TRUE)
@@ -179,7 +197,7 @@ run_limma <- function() {
              pvalue = tt$P.Value, padj = tt$adj.P.Val, stringsAsFactors = FALSE)
 }
 
-message("Running DESeq2 ..."); r_deseq <- standardize(run_deseq2(), "DESeq2")
+message("Running DESeq2 ..."); r_deseq <- standardize(hide_level_note(run_deseq2()), "DESeq2")
 message("Running edgeR ...");  r_edger <- standardize(run_edger(),  "edgeR")
 message("Running limma-voom ..."); r_limma <- standardize(run_limma(), "limma-voom")
 
@@ -237,8 +255,8 @@ volcano <- function(df, method) {
 for (m in names(methods)) volcano(methods[[m]], m)
 
 # ---- normalized expression (for heatmap + batch PCA + gene profiles) -------
-dds_norm <- DESeqDataSetFromMatrix(counts, colData = samples, design = ~ 1)
-vsd <- tryCatch(assay(vst(dds_norm, blind = TRUE)),
+dds_norm <- hide_level_note(DESeqDataSetFromMatrix(counts, colData = samples, design = ~ 1))
+vsd <- tryCatch(hide_level_note(assay(vst(dds_norm, blind = TRUE))),
                 error = function(e) log2(edgeR::cpm(counts) + 1))
 write.csv(data.frame(gene = rownames(vsd), vsd, check.names = FALSE),
           file.path(args$outdir, "normalized_expression.csv"), row.names = FALSE)
@@ -309,7 +327,8 @@ write_json(list(counts = args$counts, samples = args$samples,
                 contrast = list(test = test_lvl, reference = ref_lvl),
                 batch = batch_col %||% NA, sig_metric = sig_metric,
                 sig_cut = sig_cut, lfc = lfc_cut, filter_mode = filter_mode,
-                n_genes_tested = nrow(counts), n_samples = ncol(counts)),
+                n_genes_tested = nrow(counts), n_samples = ncol(counts),
+                software = software_versions()),
            file.path(args$outdir, "run_meta.json"), auto_unbox = TRUE, pretty = TRUE)
 
 message("Done. Results in: ", args$outdir)

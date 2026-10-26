@@ -10,9 +10,11 @@ from __future__ import annotations
 import hmac
 import json
 import os
+import platform
 import re
 import subprocess
 import sys
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from urllib.parse import urlencode
 
@@ -664,6 +666,61 @@ def render_results_step() -> None:
                                        f"enrichment_{lib}.png", "image/png",
                                        key=f"enr_png_{lib}",
                                        icon=":material/download:")
+
+    render_software_versions(rd)
+
+
+# What each package does in the portal, for the versions table / methods section.
+R_SOFTWARE = {
+    "R": "Language runtime for the analysis engine",
+    "Bioconductor": "Release the Bioconductor packages come from",
+    "DESeq2": "Differential expression (negative binomial GLM)",
+    "edgeR": "Differential expression (quasi-likelihood); TMM normalization, filtering",
+    "limma": "Differential expression (limma-voom)",
+    "GEOquery": "GEO sample metadata and supplementary files",
+    "clusterProfiler": "GO / KEGG over-representation analysis",
+    "ReactomePA": "Reactome pathway enrichment",
+    "AnnotationDbi": "Gene ID lookups",
+    "org.Hs.eg.db": "Human gene annotation (Entrez ID to symbol, GO)",
+    "org.Mm.eg.db": "Mouse gene annotation (Entrez ID to symbol, GO)",
+    "ggplot2": "Volcano and PCA plots",
+    "pheatmap": "Heatmap of top genes",
+    "jsonlite": "Engine result files",
+}
+PY_SOFTWARE = {
+    "streamlit": "Web portal",
+    "pandas": "Tables, file parsing",
+    "numpy": "Numerics",
+    "matplotlib": "Gene-of-interest and enrichment plots",
+    "requests": "GEO, NCBI and literature database queries",
+    "openpyxl": "Excel (.xlsx) uploads",
+}
+
+
+def _py_version(pkg: str) -> str:
+    try:
+        return version(pkg)
+    except PackageNotFoundError:
+        return "not installed"
+
+
+def render_software_versions(rd: Path) -> None:
+    st.subheader("Software versions")
+    st.caption("Exact versions used for this run, for reproducibility and the methods "
+               "section of a paper. R versions are recorded by the engine at run time.")
+    meta_path = rd / "run_meta.json"
+    r_ver = json.loads(meta_path.read_text()).get("software", {}) if meta_path.exists() else {}
+    rows = [{"Software": name, "Language": "R", "Version": r_ver.get(name, "re-run to record"),
+             "Used for": why} for name, why in R_SOFTWARE.items()]
+    rows.append({"Software": "Python", "Language": "Python",
+                 "Version": platform.python_version(), "Used for": "Language runtime for the portal"})
+    rows += [{"Software": pkg, "Language": "Python", "Version": _py_version(pkg), "Used for": why}
+             for pkg, why in PY_SOFTWARE.items()]
+    df = pd.DataFrame(rows)
+    st.dataframe(df, width="stretch", hide_index=True, height=35 * (len(df) + 1) + 3)
+    st.download_button("Download versions (CSV)", df.to_csv(index=False),
+                       "software_versions.csv", "text/csv", key="dl_versions",
+                       icon=":material/download:")
 
 
 def render_gene_of_interest_step() -> None:
