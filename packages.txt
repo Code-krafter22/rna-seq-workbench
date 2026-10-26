@@ -1,0 +1,14 @@
+r-base-core
+r-cran-biocmanager
+r-bioc-deseq2
+r-bioc-edger
+r-bioc-limma
+r-bioc-geoquery
+r-bioc-annotationdbi
+r-bioc-org.hs.eg.db
+r-cran-ggplot2
+r-cran-pheatmap
+r-cran-jsonlite
+r-cran-dplyr
+r-cran-readr
+r-cran-reshape2

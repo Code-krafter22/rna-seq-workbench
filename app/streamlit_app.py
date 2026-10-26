@@ -19,6 +19,7 @@ from pathlib import Path
 from urllib.parse import urlencode
 
 import pandas as pd
+import requests
 import streamlit as st
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -32,6 +33,7 @@ from geneplot import build_gene_figure, figure_bytes, PALETTES  # noqa: E402
 from litreview import search_literature  # noqa: E402
 from claude_llm import available as llm_available, synthesize_literature  # noqa: E402
 from geo import check_counts, download_counts, download_supp, is_valid_accession  # noqa: E402
+from enrichment import LIBRARIES as ENRICHR_LIBS, enrich as enrichr_enrich  # noqa: E402
 from enrichment import top_terms_figure as enr_figure, figure_bytes as enr_bytes  # noqa: E402
 sys.path.insert(0, str(ROOT / "app"))
 import ui  # noqa: E402
@@ -617,7 +619,22 @@ def render_results_step() -> None:
     st.caption(f"{len(e_genes)} genes · {e_dir.lower()} · {e_source}  "
                f"(background: {len(comp):,} tested)")
 
-    if st.button("Run enrichment", disabled=not e_genes or not e_libs, key="enr_run"):
+    use_enrichr = not has_r_package("clusterProfiler")
+    if use_enrichr:
+        st.info("clusterProfiler isn't installed on this server, so enrichment uses the "
+                "Enrichr web service (same GO / KEGG / Reactome libraries, no custom background).")
+    if st.button("Run enrichment", disabled=not e_genes or not e_libs, key="enr_run") and use_enrichr:
+        with st.spinner("Querying Enrichr…"):
+            libs = {d: ENRICHR_LIBS[d] for d in e_libs}
+            try:
+                res = enrichr_enrich(e_genes, libs)
+                ss["enrich"] = {d: df[df["Adj P-value"] < 0.05] if "Adj P-value" in df else pd.DataFrame()
+                                for d, df in res.items()}
+                ss["enrich_meta"] = {"n": len(e_genes), "dir": e_dir, "source": e_source,
+                                     "org": e_org, "engine": "Enrichr"}
+            except requests.RequestException as e:
+                st.error(f"Enrichr request failed: {e}")
+    elif ss.get("enr_run"):
         edir = rd / "enrichment"
         edir.mkdir(exist_ok=True)
         (edir / "genes.txt").write_text("\n".join(e_genes))
@@ -644,7 +661,7 @@ def render_results_step() -> None:
     er = ss.get("enrich")
     if er:
         meta = ss.get("enrich_meta", {})
-        st.caption(f"clusterProfiler ORA: {meta.get('n')} "
+        st.caption(f"{meta.get('engine', 'clusterProfiler')} ORA: {meta.get('n')} "
                    f"{str(meta.get('dir', '')).lower()} genes "
                    f"({meta.get('source')}, {meta.get('org')}).")
         for tab, (lib, edf) in zip(st.tabs(list(er.keys())), er.items()):
@@ -702,6 +719,16 @@ def _py_version(pkg: str) -> str:
         return version(pkg)
     except PackageNotFoundError:
         return "not installed"
+
+
+@st.cache_resource
+def has_r_package(pkg: str) -> bool:
+    """True when Rscript can load `pkg` (Streamlit Cloud's Debian R lacks some)."""
+    try:
+        return subprocess.run(["Rscript", "-e", f"quit(status = !requireNamespace('{pkg}', quietly = TRUE))"],
+                              capture_output=True, timeout=60).returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
 
 
 def render_software_versions(rd: Path) -> None:
